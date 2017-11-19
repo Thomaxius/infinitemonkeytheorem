@@ -7,8 +7,6 @@ shakespeare = open('src/shakespeare.txt', 'r')
 shakespeare_lines = ''.join(shakespeare.readlines())
 shakespeare.close()
 
-founddict = {}
-
 def get_monkey_typed_string():
     alphabet = string.ascii_lowercase + ' '
     monkeytyped = ''
@@ -42,8 +40,9 @@ def put_monkey_to_work():
         if line%100000==0:
             print('Line %s, Characters typed: %s' % (line, characterstyped))
         if line == randomnumber:
+            founditems = open("src/founditems.txt", "a")
             founditems.write(easteregg + '. ' + monkeytyped + ' ' + 'Date found: ' + str(datetime.datetime.now()) + '\n')
-
+            founditems.close()
 put_monkey_to_work()
 
 
