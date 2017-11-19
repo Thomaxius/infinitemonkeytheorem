@@ -27,6 +27,7 @@ def put_monkey_to_work():
     datestarted = datetime.datetime.now()
     founditems = open("src/founditems.txt", "a")
     founditems.write('\nSearch started: ' + str(datestarted))
+    founditems.close()
     easteregg = 'It was the best of times, it was the blurst of times.'
     while True:
         line += 1
@@ -35,7 +36,9 @@ def put_monkey_to_work():
         if is_shakespeare(monkeytyped):
             print("Monkey found shakespeare!\n Line: %s, characters typed: %s"  % (line, characterstyped))
             time.sleep(10)
+            founditems = open("src/founditems.txt", "a")
             founditems.write(str(line) + '. ' + monkeytyped + ' ' + 'Date found: ' + str(datetime.datetime.now()) + '\n')
+            founditems.close()
         if line%100000==0:
             print('Line %s, Characters typed: %s' % (line, characterstyped))
         if line == randomnumber:
