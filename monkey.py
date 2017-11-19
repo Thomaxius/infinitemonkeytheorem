@@ -2,20 +2,23 @@ import random
 import string
 import datetime
 import time
+import threading
 
 shakespeare = open('src/shakespeare.txt', 'r')
-shakespeare_lines = ''.join(shakespeare.readlines())
+shakespeare_list = shakespeare.readlines()
+shortest_sentence = len(min(shakespeare_list, key=len))
+longest_sentence = len(max(shakespeare_list, key=len))
 shakespeare.close()
 
 def get_monkey_typed_string():
     alphabet = string.ascii_lowercase + ' '
     monkeytyped = ''
-    for x in range ((random.randrange(8,77))): # 8 and 77 are the shortest and longest lines in the file
+    for x in range ((random.randrange(shortest_sentence,longest_sentence))):
         monkeytyped += random.choice(alphabet)
     return monkeytyped
 
 def is_shakespeare(string):
-    return string in shakespeare_lines
+    return string + '\n' in shakespeare_list
 
 def put_monkey_to_work():
     print('The monkey has begun working.')
@@ -43,6 +46,7 @@ def put_monkey_to_work():
             founditems = open("src/founditems.txt", "a")
             founditems.write(easteregg + '. ' + monkeytyped + ' ' + 'Date found: ' + str(datetime.datetime.now()) + '\n')
             founditems.close()
+
 put_monkey_to_work()
 
 
