@@ -6,8 +6,9 @@ import threading
 
 shakespeare = open('src/shakespeare.txt', 'r')
 shakespeare_list = shakespeare.readlines()
-shortest_sentence = len(min(shakespeare_list, key=len))
-longest_sentence = len(max(shakespeare_list, key=len))
+shakespeare_set = set([line for line in shakespeare_list if not line.isupper()]) #Remove copyright, etc.
+shortest_sentence = len(min(shakespeare_set, key=len))
+longest_sentence = len(max(shakespeare_set, key=len))
 shakespeare.close()
 
 def get_monkey_typed_string():
@@ -18,7 +19,7 @@ def get_monkey_typed_string():
     return monkeytyped
 
 def is_shakespeare(string):
-    return string + '\n' in shakespeare_list
+    return string + '\n' in shakespeare_set
 
 def put_monkey_to_work():
     print('The monkey has begun working.')

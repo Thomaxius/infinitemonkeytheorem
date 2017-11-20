@@ -1,0 +1,2 @@
+python monkey.py
+@pause
