@@ -14,7 +14,7 @@ shakespeare.close()
 def get_monkey_typed_string():
     alphabet = string.ascii_lowercase + ' '
     monkeytyped = ''
-    for x in range ((random.randrange(shortest_sentence,longest_sentence))):
+    for x in range ((random.randrange(shortest_sentence,longest_sentence+1))):
         monkeytyped += random.choice(alphabet)
     return monkeytyped
 
