@@ -4,16 +4,22 @@ import datetime
 import time
 import threading
 import multiprocessing
+import queue
+
+from rapidfuzz import fuzz, process
 
 NUM_MONKEYS = 1000
-NUM_PROCESSES = multiprocessing.cpu_count()
+NUM_PROCESSES = max(1, multiprocessing.cpu_count() - 1)  # one core is left for the checker
 BATCH = 1000  # lines a monkey types before flushing its counts to the shared totals
+SAMPLE_EVERY = 10000  # each monkey offers one of its strings to the checker this often
+QUEUE_SIZE = 100
 EASTER_EGG = 'It was the best of times, it was the blurst of times.'
 
 with open('src/shakespeare.txt', 'r') as shakespeare:
     shakespeare_set = set(line for line in shakespeare if not line.isupper())  # Remove copyright, etc.
 shortest_sentence = len(min(shakespeare_set, key=len))
 longest_sentence = len(max(shakespeare_set, key=len))
+shakespeare_lines = [line.rstrip('\n') for line in shakespeare_set if line.strip()]
 
 alphabet = string.ascii_lowercase + ' '
 
@@ -52,13 +58,53 @@ def flush(shared, lines, chars):
         return start < shared['egg_line'] <= shared['lines'].value
 
 
+def offer_sample(samples, text):
+    """Hands a string to the checker, dropping it if the checker is behind."""
+    try:
+        samples.put_nowait(text)
+    except queue.Full:
+        pass
+
+
+def closest_match(text, cutoff):
+    """Returns (line, score) for the best match scoring above cutoff, else None."""
+    result = process.extractOne(text, shakespeare_lines, scorer=fuzz.ratio, score_cutoff=cutoff)
+    if result is None or result[1] <= cutoff:
+        return None
+    return result[0], result[1]
+
+
+def log_closest(shared, text, line, score):
+    print('New closest (%.1f%%): "%s" ~ "%s"' % (score, text, line))
+    with shared['lock']:
+        with open("src/founditems.txt", "a") as founditems:
+            founditems.write('Closest %.1f%%: "%s" ~ "%s" Date found: %s\n' % (score, text, line, datetime.datetime.now()))
+
+
+def checker(shared):
+    best = 0.0
+    try:
+        while True:
+            text = shared['samples'].get()
+            match = closest_match(text, best)
+            if match:
+                line, best = match
+                log_closest(shared, text, line, best)
+    except KeyboardInterrupt:
+        pass
+
+
 def monkey(shared, monkey_id):
     lines = 0
     chars = 0
+    typed = 0
     while True:
         text = get_monkey_typed_string()
         lines += 1
+        typed += 1
         chars += len(text)
+        if typed % SAMPLE_EVERY == 0:
+            offer_sample(shared['samples'], text)
         if is_shakespeare(text):
             log_found(shared, monkey_id, text, lines, chars)
         if lines == BATCH:
@@ -86,6 +132,7 @@ def put_monkeys_to_work():
         'chars': multiprocessing.Value('q', 0, lock=False),
         'next_report': multiprocessing.Value('q', 100000, lock=False),
         'egg_line': random.randrange(1000000, 1000000000),
+        'samples': multiprocessing.Queue(maxsize=QUEUE_SIZE),
     }
     with open("src/founditems.txt", "a") as founditems:
         founditems.write('\nSearch started: ' + str(datetime.datetime.now()) + '\n')
@@ -95,15 +142,16 @@ def put_monkeys_to_work():
         multiprocessing.Process(target=worker, args=(shared, p * per_process, per_process), daemon=True)
         for p in range(NUM_PROCESSES)
     ]
-    for process in processes:
-        process.start()
+    checker_process = multiprocessing.Process(target=checker, args=(shared,), daemon=True)
+    for p in processes + [checker_process]:
+        p.start()
     try:
-        for process in processes:
-            process.join()
+        for p in processes:
+            p.join()
     except KeyboardInterrupt:
         print('Monkeys stopped.')
-        for process in processes:
-            process.terminate()
+        for p in processes + [checker_process]:
+            p.terminate()
 
 
 if __name__ == '__main__':
