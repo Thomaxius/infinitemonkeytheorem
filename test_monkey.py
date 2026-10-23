@@ -1,5 +1,6 @@
 import multiprocessing
 import os
+import queue
 import unittest
 from unittest import mock
 
@@ -62,6 +63,32 @@ class TestFlush(unittest.TestCase):
             monkey.flush(shared, 150, 0)
         fake_print.assert_called_once()
         self.assertEqual(shared['next_report'].value, 100100)
+
+
+class TestClosestMatch(unittest.TestCase):
+    def test_exact_line_scores_100(self):
+        line = next(l for l in monkey.shakespeare_lines if len(l) > 5)
+        self.assertEqual(monkey.closest_match(line, 0.0), (line, 100.0))
+
+    def test_near_miss_scores_below_100(self):
+        line = next(l for l in monkey.shakespeare_lines if len(l) > 10)
+        matched, score = monkey.closest_match(line[:-1] + '#', 0.0)
+        self.assertLess(score, 100.0)
+        self.assertGreater(score, 80.0)
+
+    def test_returns_none_when_cutoff_not_beaten(self):
+        line = next(l for l in monkey.shakespeare_lines if len(l) > 5)
+        self.assertIsNone(monkey.closest_match(line, 100.0))
+
+
+class TestSampleQueue(unittest.TestCase):
+    def test_offer_sample_drops_when_full(self):
+        samples = multiprocessing.Queue(maxsize=1)
+        monkey.offer_sample(samples, 'first')
+        monkey.offer_sample(samples, 'second')  # must not block or raise
+        self.assertEqual(samples.get(timeout=1), 'first')
+        with self.assertRaises(queue.Empty):
+            samples.get(timeout=0.2)
 
 
 class TestLogging(unittest.TestCase):
